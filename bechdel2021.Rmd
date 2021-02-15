@@ -1,0 +1,211 @@
+---
+title: "Bechdel"
+author: "Marco Arellano"
+output: html_document
+---
+```{r}
+library(fivethirtyeight)
+library(tidyverse)
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+```
+
+```{r}
+bechdel90_13 <- bechdel %>% 
+  filter(between(year, 1990, 2013))
+```
+
+```{r}
+bechdel90_13 %>%
+  group_by(binary) %>%
+  summarise(med_budget = median(budget_2013),
+            med_domgross = median(domgross_2013, na.rm = TRUE),
+            med_intgross = median(intgross_2013, na.rm = TRUE))
+```
+
+```{r}
+bechdel90_13 %>%
+  group_by(clean_test) %>%
+  summarise(med_budget = median(budget_2013),
+            med_domgross = median(domgross_2013, na.rm = TRUE),
+            med_intgross = median(intgross_2013, na.rm = TRUE))
+```
+
+```{r}
+bechdel90_13 <- bechdel90_13 %>%
+  mutate(roi = (intgross_2013 + domgross_2013) / budget_2013)
+```
+
+```{r}
+bechdel90_13 %>%
+  arrange(desc(roi)) %>% 
+  select(title, roi, year , binary)
+```
+
+```{r}
+bechdel90_13 %>%
+  group_by(binary) %>%
+  summarise(med_budget = median(budget_2013),
+            med_domgross = median(domgross_2013, na.rm = TRUE),
+            med_intgross = median(intgross_2013, na.rm = TRUE))
+```
+
+```{r}
+ggplot(data = bechdel90_13, 
+       mapping = aes(x = clean_test, y = roi, color = binary)) +
+  geom_boxplot() +
+  labs(title = "Return on investment vs. Bechdel test result",
+       x = "Detailed Bechdel result",
+       y = "Return on investment",
+       color = "Binary Bechdel result")
+```
+
+```{r}
+bechdel90_13 %>%
+  filter(roi > 400) %>%
+  select(title, budget_2013, domgross_2013, year, binary)
+```
+
+```{r}
+ggplot(data = bechdel90_13, mapping = aes(x = clean_test, y = roi, color = binary)) +
+  geom_boxplot() +
+  labs(title = "Return on investment vs. Bechdel test result",
+       subtitle = "Median Gross", # Something about zooming in to a certain level
+       x = "Detailed Bechdel result",
+       y = "Return on investment",
+       color = "Binary Bechdel result") +
+  coord_cartesian(ylim = c(0, 15))
+```
+
+```{r}
+ggplot(data = bechdel90_13, mapping = aes(x = year, y = roi, color = binary)) +
+  geom_point() +
+  labs(title = "Return on investment vs. Bechdel test result",
+       subtitle = "Groos  in movies between 1990 - 2013", # Something about zooming in to a certain level
+       x = "Detailed Bechdel result",
+       y = "Return on investment",
+       color = "Binary Bechdel result") +
+  coord_cartesian(ylim = c(0, 15))
+```
+
+```{r}
+bechdel90_13 %>% ggplot(., aes(x = year)) +
+  geom_bar() +
+  theme_bw() +
+  facet_wrap(bechdel90_13$clean_test) +
+  theme(legend.position = "bottom",
+        legend.background = element_rect(fill = "#EEEEEE", color = "black"),
+        legend.title = element_blank(),
+        axis.title = element_text(size = 16)) +
+  guides(x = guide_axis(angle = 60))
+```
+
+```{r}
+year.binary2 <- bechdel90_13 %>%
+  group_by(year , binary ) %>%
+  summarise(mean_budget = mean(budget_2013),
+            mean_domgross = mean(domgross_2013, na.rm = TRUE),
+            mean_intgross = mean(intgross_2013, na.rm = TRUE),
+            n = n()) %>%
+  mutate( porcentaje = n/sum(n) , mean_roi = (mean_intgross + mean_domgross) / mean_budget)
+```
+
+```{r}
+ggplot(year.binary2 ,
+       mapping = aes(x = year, y = mean_roi, color = binary)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "loess", se = FALSE) +
+  scale_y_continuous() +
+  labs(
+    title = "",
+    subtitle = "",
+    y = "%",
+    x = "Year",
+    color = "Binary")
+```
+
+```{r}
+year.budget <- bechdel90_13 %>%
+  group_by(year , title , binary) %>%
+  summarise(budget =  budget_2013) %>%
+  arrange(desc(budget))
+```
+
+```{r}
+median(year.budget$budget)
+```
+
+```{r}
+bechdel50 <- bechdel90_13 %>%
+  mutate(budgetgroup = case_when (budget_2013 > median(budget_2013) ~ "Highbudget" , 
+                           TRUE ~ "Lowbudget")) %>%
+  select(title, budget_2013, budgetgroup , year, binary) %>%
+  arrange(desc(budget_2013))
+```
+
+```{r}
+bechdel50 %>% ggplot(.,
+       mapping = aes(x = year, y = budget_2013, color = binary)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "loess", se = FALSE) +
+  scale_y_continuous() +
+  facet_wrap(~budgetgroup)+
+  labs(
+    title = "BUDGET MOVIES TREND BY MAGNITUDE",
+    subtitle = " 50% GREATER THAN MEDIAN = TRUE",
+    y = "Budget",
+    x = "Year",
+    color = "Binary")
+```
+
+```{r}
+year.clean <- bechdel90_13 %>%
+  summarise( prop.pas = prop.table (table( year , clean_test) , 1))
+print(year.clean)
+class(year.clean)
+print( as.data.frame( year.clean$prop.pas))
+dfclean_testp <- as.data.frame( year.clean$prop.pas)
+print(dfclean_testp)
+names(dfclean_testp) <- c("year" , "clean_test" , "rel.frq")
+```
+
+```{r}
+ggplot(dfclean_testp , 
+       aes(x = year, y = rel.frq ,  fill = clean_test)) +
+  geom_col(position = 'stack') +
+  # \n creates a newline, i.e. splits the label into multiple lines +
+  theme_bw()+
+  scale_fill_viridis_d(option = "C", end = 0.9)+
+  scale_y_continuous(labels = scales::percent)+
+  labs(
+  title = "The Bechdel Test Over Time",
+  subtitle = "",
+  y = "Relative frequency per category",
+  x = "Year")+
+  guides(x = guide_axis(angle = 60))
+```
+
+```{r}
+year.clean2 <- bechdel90_13 %>%
+  summarise( prop.pas = table ( year , clean_test))
+print(year.clean2)
+dfclean_testp2 <- as.data.frame( year.clean2$prop.pas)
+print(dfclean_testp2)
+```
+
+```{r}
+ggplot(dfclean_testp2 , 
+       aes(x = year, y = Freq ,  fill = clean_test)) +
+  geom_col(position = 'fill') +
+   # \n creates a newline, i.e. splits the label into multiple lines +
+  theme_bw()+
+  scale_fill_viridis_d(option = "C", end = 0.9)+
+  scale_y_continuous(labels = scales::percent)+
+  labs(
+  title = "The Bechdel Test Over Time 2",
+  subtitle = "",
+  y = "Relative frequency per category",
+  x = "Year")+
+  guides(x = guide_axis(angle = 60))
+```
